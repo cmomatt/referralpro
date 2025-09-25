@@ -1,0 +1,11 @@
+.DS_Store
+*.log
+node_modules/
+.next/
+.env.local
+.env
+dist/
+build/
+*.tsbuildinfo
+.vercel
+.drizzle
