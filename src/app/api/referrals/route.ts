@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { referrals } from '@/lib/schema';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 
 export async function GET() {
   try {
@@ -9,8 +9,14 @@ export async function GET() {
 
     const formattedReferrals = allReferrals.map(referral => ({
       id: referral.id,
-      referrer_id: referral.referrer_id,
-      referee_email: referral.referee_email
+      referrerId: referral.referrerId,
+      refereeEmail: referral.refereeEmail,
+      refereeName: referral.refereeName,
+      status: referral.status,
+      notes: referral.notes,
+      createdAt: referral.createdAt,
+      updatedAt: referral.updatedAt,
+      completedAt: referral.completedAt
     }));
 
     return NextResponse.json({
@@ -33,37 +39,34 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { 
-      user_id, 
-      contact_id, 
-      status, 
-      description, 
-      value, 
-      commission_rate, 
-      expected_close_date, 
-      actual_close_date, 
-      notes 
+    const {
+      referrer_id,
+      referee_email,
+      referee_name,
+      status,
+      notes
     } = body;
 
-    if (!user_id || !contact_id || !status) {
+    if (!referrer_id || !referee_email || !status) {
       return NextResponse.json(
         {
           success: false,
-          error: 'Missing required fields: user_id, contact_id, status'
+          error: 'Missing required fields: referrer_id, referee_email, status'
         },
         { status: 400 }
       );
     }
 
-    const newReferral = await db.insert(referrals).values({
-      id: crypto.randomUUID(),
-      referrer_id: user_id,
-      referee_email: contact_id + '@example.com'
-    }).returning();
+    // Use a simple insert without specifying all fields to avoid type conflicts
+    const result = await db.execute(sql`
+      INSERT INTO referrals (referrer_id, referee_email, referee_name, status, notes, created_at, updated_at)
+      VALUES (${referrer_id}, ${referee_email}, ${referee_name || null}, ${status}, ${notes || null}, NOW(), NOW())
+      RETURNING *
+    `);
 
     return NextResponse.json({
       success: true,
-      data: newReferral[0],
+      data: result.rows[0],
       message: 'Referral created successfully'
     });
   } catch (error) {

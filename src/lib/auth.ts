@@ -1,5 +1,7 @@
 import NextAuth from 'next-auth';
+import { DrizzleAdapter } from '@auth/drizzle-adapter';
 import GoogleProvider from 'next-auth/providers/google';
+import { db } from './db';
 import type { DefaultSession } from 'next-auth';
 
 declare module 'next-auth' {
@@ -11,12 +13,18 @@ declare module 'next-auth' {
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  // Temporarily disable adapter to test
-  // adapter: DrizzleAdapter(db),
+  adapter: DrizzleAdapter(db),
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code"
+        }
+      }
     }),
   ],
   pages: {
@@ -25,9 +33,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     error: '/auth/error',
   },
   callbacks: {
-    async session({ session, token }) {
-      if (session.user && token) {
-        session.user.id = token.id as string;
+    async session({ session, user, token }) {
+      if (session.user && user) {
+        session.user.id = user.id;
       }
       return session;
     },
@@ -39,7 +47,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   session: {
-    strategy: 'jwt', // Use JWT instead of database sessions
+    strategy: 'jwt', // Use JWT sessions for now
   },
   debug: process.env.NODE_ENV === 'development',
 });
